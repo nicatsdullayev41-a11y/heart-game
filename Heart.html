@@ -1,0 +1,168 @@
+# heart-game
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Magnetic Neon Heart 💓</title>
+<style>
+    body {
+        margin: 0;
+        background: black;
+        overflow: hidden;
+        cursor: pointer;
+    }
+    canvas {
+        display: block;
+    }
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+
+<script>
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let particles = [];
+let time = 0;
+
+// текущие координаты курсора/пальца
+let mouse = {x: canvas.width/2, y: canvas.height/2};
+
+canvas.addEventListener("mousemove", e => {
+    mouse.x = e.clientX;
+    mouse.y = e.clientY;
+});
+canvas.addEventListener("touchmove", e => {
+    e.preventDefault();
+    let touch = e.touches[0];
+    mouse.x = touch.clientX;
+    mouse.y = touch.clientY;
+}, {passive:false});
+
+// функция сердца
+function heart(t, scale=1) {
+    let x = 16 * Math.sin(t) ** 3;
+    let y = 13 * Math.cos(t) - 5 * Math.cos(2*t)
+          - 2 * Math.cos(3*t) - Math.cos(4*t);
+    return {x: x * scale, y: -y * scale};
+}
+
+// класс частицы
+class Particle {
+    constructor(x, y, speed=1, size=2.5) {
+        this.x = x;
+        this.y = y;
+
+        let angle = Math.random() * Math.PI * 2;
+        this.vx = Math.cos(angle) * speed;
+        this.vy = Math.sin(angle) * speed;
+
+        this.baseSpeed = speed;
+        this.speed = speed;
+        this.life = Math.random() * 100 + 40;
+        this.size = size;
+    }
+
+    update() {
+        // притяжение к мыши/пальцу
+        let dx = mouse.x - this.x;
+        let dy = mouse.y - this.y;
+        let dist = Math.sqrt(dx*dx + dy*dy);
+
+        // сила притяжения уменьшается с расстоянием
+        if (dist > 1) {
+            this.vx += (dx / dist) * 0.3; 
+            this.vy += (dy / dist) * 0.3;
+        }
+
+        // лёгкое трение, чтобы не летели слишком быстро
+        this.vx *= 0.9;
+        this.vy *= 0.9;
+
+        this.x += this.vx;
+        this.y += this.vy;
+
+        this.life--;
+    }
+
+    draw() {
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = "rgba(255, 0, 120, 1)";
+        ctx.fillStyle = "rgba(255, 100, 180, 1)";
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+    }
+}
+
+// взрыв частиц
+function explode(x, y, count=500) {
+    for (let i=0;i<count;i++){
+        particles.push(new Particle(x, y, Math.random()*6+2, Math.random()*4+1));
+    }
+}
+
+// клик = супер взрыв
+canvas.addEventListener("click", e => {
+    superExplode(e.clientX, e.clientY);
+});
+canvas.addEventListener("touchstart", e => {
+    e.preventDefault();
+    let touch = e.touches[0];
+    superExplode(touch.clientX, touch.clientY);
+}, {passive:false});
+
+function superExplode(x, y) {
+    explode(x, y, 500);
+}
+
+let lastPulse = 0;
+
+function animate(){
+    time += 0.05;
+    let scale = 1 + Math.sin(time)*0.2;
+
+    ctx.fillStyle = "rgba(0,0,0,0.2)";
+    ctx.fillRect(0,0,canvas.width, canvas.height);
+
+    // пульсирующее сердце частицы
+    if (Math.sin(time) > 0.95 && time - lastPulse > 1){
+        for (let i=0;i<200;i++){
+            let t = Math.random()*Math.PI*2;
+            let pos = heart(t, scale);
+            let x = canvas.width/2 + pos.x*15;
+            let y = canvas.height/2 + pos.y*15;
+            particles.push(new Particle(x, y, 1));
+        }
+        lastPulse = time;
+    }
+
+    // обычные частицы
+    for (let i=0;i<10;i++){
+        let t = Math.random()*Math.PI*2;
+        let pos = heart(t, scale);
+        let x = canvas.width/2 + pos.x*15;
+        let y = canvas.height/2 + pos.y*15;
+        particles.push(new Particle(x, y, 1));
+    }
+
+    particles = particles.filter(p => p.life>0);
+    particles.forEach(p=>{
+        p.update();
+        p.draw();
+    });
+
+    requestAnimationFrame(animate);
+}
+
+animate();
+</script>
+
+</body>
+</html>
